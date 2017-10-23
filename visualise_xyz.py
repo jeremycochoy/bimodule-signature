@@ -23,13 +23,15 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 fig = plt.figure()
-ax = Axes3D(fig)
+
+ax = fig.add_subplot(2, 1, 1, projection='3d')
+bx = fig.add_subplot(2, 1, 2, projection='3d')
 xs = X[:,0]
 ys = X[:,1]
 zs = X[:,2]
 print(xs)
 ax.scatter(xs, ys, zs)
-
+bx.plot_trisurf(xs, ys, zs, cmap='cubehelix')
 plt.show()
 
 
