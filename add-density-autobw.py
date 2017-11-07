@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import sys
 import numpy as np
-#from sklearn.neighbors.kde import KernelDensity
 from scipy.stats import gaussian_kde
 
 if len(sys.argv) < 2:
@@ -21,7 +20,7 @@ X = np.array(points)
 #print(X)
 
 #The kernel aplied
-kde = gaussian_kde(np.transpose(X))#, bw_method=0.5 / X.std(ddof=1)) # auto bandwidth
+kde = gaussian_kde(np.transpose(X)) # auto bandwidth
 # Compute the density on each point of the sample
 values = kde.evaluate(np.transpose(X))
 
