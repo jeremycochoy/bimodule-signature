@@ -42,32 +42,6 @@ for i in range(0, len(densities)):
     densities[i] = max_density - densities[i]
 
 ###
-### Don't ask me why the fuck I was computing this...
-###
-#
-# #cKDTree is like KDTree but (supposedly) faster
-# tree = spatial.cKDTree(points)
-#
-#
-# #Since the points are in the tree, we look for the second neighbor
-# for p in points:
-#     ds, ps = tree.query(p, k=2)
-#     d = ds[1]
-#     p_idx = ps[1]
-#     distances += [d]
-#     #print("distance = %f, point_index = %d" % (d, p_idx))
-# distances = np.array(distances)
-# # Normalise distances
-# max_dist = float(max(distances))
-
-# for i in range(nb_pts):
-#     distances[i] = distances[i] / max_dist
-    
-#print(points)
-#print(densities)
-#print(distances)
-
-###
 ## Utilitary function that allow accessing informations
 ## about simplexes (mostly edges)
 ###
@@ -106,7 +80,6 @@ def seg_time(i, j):
 
 #Now we compute bondary matrix \delta_1
 print("Transposed matrix From C_1 to C_0:")
-#matrix_d1 = np.empty([nb_pts, 0])
 
 for i in range(nb_pts):
     for j in range(i + 1, nb_pts):
@@ -122,14 +95,6 @@ for i in range(nb_pts):
         col[i] = "-x^%fy^%f" % (x, y - densities[i])
         col[j] = "x^%f+y^%f" % (x, y - densities[j])
         print(" ".join(col.tolist()))
-
-        # Compute a numpy matrix with the values
-        #col = np.array([col]).transpose()
-        #matrix_d1 = np.concatenate((matrix_d1, col), axis=1)
-
-#Print the Numpy Matrix
-#np.set_printoptions(threshold=np.nan)
-#print(matrix_d1)
 
 
 #Then the bondary matrix \delta_2
