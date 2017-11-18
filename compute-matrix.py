@@ -33,48 +33,83 @@ for line in file:
 points = np.array(points)
 densities = np.array(densities)
 nb_pts = len(points)
+max_density = max(densities)
 
-#cKDTree is like KDTree but (supposedly) faster
-tree = spatial.cKDTree(points)
+#Reverse densities. This code is not needeed, we use it so that we can take
+# the sup-levelsets for density.
+for i in range(0, len(densities)):
+    densities[i] = max_density - densities[i]
 
-#Since the points are in the tree, we look for the second neighbor
-for p in points:
-    ds, ps = tree.query(p, k=2)
-    d = ds[1]
-    p_idx = ps[1]
-    distances += [d]
-    #print("distance = %f, point_index = %d" % (d, p_idx))
-distances = np.array(distances)
-# Normalise distances
-max_dist = float(max(distances))
+#Fast distance computation (euclidean)
+def distance(i, j):
+    return np.linalg.norm(points[i] - points[j])
 
-for i in range(nb_pts):
-    distances[i] = distances[i] / max_dist
+###
+### Don't ask me why the fuck I was computing this...
+###
+#
+# #cKDTree is like KDTree but (supposedly) faster
+# tree = spatial.cKDTree(points)
+#
+#
+# #Since the points are in the tree, we look for the second neighbor
+# for p in points:
+#     ds, ps = tree.query(p, k=2)
+#     d = ds[1]
+#     p_idx = ps[1]
+#     distances += [d]
+#     #print("distance = %f, point_index = %d" % (d, p_idx))
+# distances = np.array(distances)
+# # Normalise distances
+# max_dist = float(max(distances))
+
+# for i in range(nb_pts):
+#     distances[i] = distances[i] / max_dist
     
 #print(points)
 #print(densities)
 #print(distances)
 
+
+#Return the index, in our order, for the segment made of points
+# i and j.
+# Warning: It suppose i < j!
+def seg_index(i, j):
+    # This is computed in the first matrix pass...
+    # Yes, it's an ugly hack. Should be fixed one day
+    # by precalculating it at the begining of the program...
+    return seg_index_map[(i, j)]
+seg_index_map = {}
+
+
+#Return the pair of time where the segment appear in the filtration.
+def seg_time(i, j):
+    #We compute the bifiltration index of the current simplex
+    #stored in the tuple: (x, y)
+    x = distance(i, j) # the two point should be close to each other: rips filtration
+    y = max(densities[i], densities[j]) # the two points should be in the set
+    return (x, y)
+
 #Now we compute bondary matrix \delta_1
 print("Transposed matrix From C_1 to C_0:")
 #matrix_d1 = np.empty([nb_pts, 0])
 
+counter = 0
 for i in range(nb_pts):
     for j in range(i + 1, nb_pts):
+        seg_index_map[(i, j)] = counter
+        counter += 1
         col = np.array(np.zeros(nb_pts, dtype=np.int8), dtype='U20')
-        #We compute the bifiltration index of the current simplex
-        #stored in the tuple: (x, y)
-        x = max(abs(distances[i] - distances[j]), distances[i],
-                distances[j]) # the two point should be close to each other: rips filtration
-        y = max(densities[i], densities[j]) # the two points should be in the set
+        (x, y) = seg_time(i, j)
         #Now we output the collumn of the matrix.
         #We simply compute the bondary opperator applied to this simplex.
         #Then, we output a polynomial coefficient in front of each
         #element of the cycle expression wich induce the right
         #grading degree of the expression ; the simplex connect in (x, y).
         #The output is x^distances * y^density = (distance, density)
-        col[i] = "-x^%fy^%f" % (x - distances[i], y - densities[i])
-        col[j] = "x^%f+y^%f" % (x - distances[j], y - densities[j])
+        #In a rips filtration, all the points are present at the initial time
+        col[i] = "-x^%fy^%f" % (x, y - densities[i])
+        col[j] = "x^%f+y^%f" % (x, y - densities[j])
         print(" ".join(col.tolist()))
 
         # Compute a numpy matrix with the values
@@ -92,8 +127,15 @@ print("Transposed matrix From C_2 to C_1:")
 for i in range(nb_pts):
     for j in range(i + 1, nb_pts):
         for k in range(j + 1, nb_pts):
-            col = np.array(np.zeros(nb_pts*(nb_pts - 1), dtype=np.int8), dtype='U20')
-            #TODO
-#            col[i] = "-x^%f-y^%f)" % (distances[i],densities[i])
-#            col[j] = "x^%f+y^%f" % (distances[j],densities[j])
+            col = np.array(np.zeros(nb_pts*(nb_pts - 1)/2, dtype=np.int8), dtype='U20')
+            # the two point should be close to each other: rips filtration
+            x = max(distance(i, j),
+                    distance(i, k),
+                    distance(j, k))
+            # the two points should be in the set
+            y = max(densities[i], densities[j], densities[k])
+            #Remember seg_index(x, y) require x < y!
+            col[seg_index(i, j)] = "x^%f+y^%f" % (x, y)
+            col[seg_index(j, k)] = "x^%f+y^%f" % (x, y)
+            col[seg_index(i, k)] = "-x^%f-y^%f" % (x, y)
             print(" ".join(col.tolist()))
