@@ -21,7 +21,7 @@ if len(sys.argv) < 2:
 file=open(sys.argv[1])
 points = []
 densities = []
-distances = []
+#distances = []
 
 for line in file:
     vector = [float(x) for x in line.split()]
@@ -36,13 +36,10 @@ nb_pts = len(points)
 max_density = max(densities)
 
 #Reverse densities. This code is not needeed, we use it so that we can take
-# the sup-levelsets for density.
+# the sup-levelsets for density, because our imput file have
+# outliers with low densities and interesting points at high densities.
 for i in range(0, len(densities)):
     densities[i] = max_density - densities[i]
-
-#Fast distance computation (euclidean)
-def distance(i, j):
-    return np.linalg.norm(points[i] - points[j])
 
 ###
 ### Don't ask me why the fuck I was computing this...
@@ -70,6 +67,14 @@ def distance(i, j):
 #print(densities)
 #print(distances)
 
+###
+## Utilitary function that allow accessing informations
+## about simplexes (mostly edges)
+###
+
+#Fast distance computation (euclidean)
+def distance(i, j):
+    return np.linalg.norm(points[i] - points[j])
 
 #Return the index, in our order, for the segment made of points
 # i and j.
@@ -80,6 +85,10 @@ def seg_index(i, j):
     # by precalculating it at the begining of the program...
     return seg_index_map[(i, j)]
 seg_index_map = {}
+counter = 0
+for i in range(nb_pts):
+    for j in range(i + 1, nb_pts):
+        seg_index_map[(i, j)] = counter
 
 
 #Return the pair of time where the segment appear in the filtration.
@@ -90,15 +99,17 @@ def seg_time(i, j):
     y = max(densities[i], densities[j]) # the two points should be in the set
     return (x, y)
 
+###
+## The main algorithm that compute our matrices
+###
+
+
 #Now we compute bondary matrix \delta_1
 print("Transposed matrix From C_1 to C_0:")
 #matrix_d1 = np.empty([nb_pts, 0])
 
-counter = 0
 for i in range(nb_pts):
     for j in range(i + 1, nb_pts):
-        seg_index_map[(i, j)] = counter
-        counter += 1
         col = np.array(np.zeros(nb_pts, dtype=np.int8), dtype='U20')
         (x, y) = seg_time(i, j)
         #Now we output the collumn of the matrix.
