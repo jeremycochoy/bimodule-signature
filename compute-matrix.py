@@ -92,8 +92,8 @@ for i in range(nb_pts):
         #grading degree of the expression ; the simplex connect in (x, y).
         #The output is x^distances * y^density = (distance, density)
         #In a rips filtration, all the points are present at the initial time
-        col[i] = "-x^%fy^%f" % (x, y - densities[i])
-        col[j] = "x^%f+y^%f" % (x, y - densities[j])
+        col[i] = "-x^%f y^%f" % (x, y - densities[i])
+        col[j] = "x^%f y^%f" % (x, y - densities[j])
         print(" ".join(col.tolist()))
 
 
@@ -111,7 +111,8 @@ for i in range(nb_pts):
             # the two points should be in the set
             y = max(densities[i], densities[j], densities[k])
             #Remember seg_index(x, y) require x < y!
-            col[seg_index(i, j)] = "x^%f+y^%f" % (x, y)
-            col[seg_index(j, k)] = "x^%f+y^%f" % (x, y)
-            col[seg_index(i, k)] = "-x^%f-y^%f" % (x, y)
+            (sx, sy) = seg_time(i, j)
+            col[seg_index(i, j)] = "x^%f y^%f" % (x - sx, y - sy)
+            col[seg_index(j, k)] = "x^%f y^%f" % (x, y)
+            col[seg_index(i, k)] = "-x^%f y^%f" % (x, y)
             print(" ".join(col.tolist()))
