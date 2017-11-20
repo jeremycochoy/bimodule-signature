@@ -54,21 +54,6 @@ for i in range(0, len(densities)):
 def distance(i, j):
     return np.linalg.norm(points[i] - points[j])
 
-#Return the index, in our order, for the segment made of points
-# i and j.
-# Warning: It suppose i < j!
-def seg_index(i, j):
-    # This is computed in the first matrix pass...
-    # Yes, it's an ugly hack. Should be fixed one day
-    # by precalculating it at the begining of the program...
-    return seg_index_map[(i, j)]
-seg_index_map = {}
-counter = 0
-for i in range(nb_pts):
-    for j in range(i + 1, nb_pts):
-        seg_index_map[(i, j)] = counter
-
-
 #Return the pair of time where the segment appear in the filtration.
 def seg_time(i, j):
     #We compute the bifiltration index of the current simplex
@@ -76,6 +61,21 @@ def seg_time(i, j):
     x = distance(i, j) # the two point should be close to each other: rips filtration
     y = max(densities[i], densities[j]) # the two points should be in the set
     return (x, y)
+
+#Return the index, in our order, for the segment made of points
+# i and j.
+# Warning: It suppose i < j!
+def seg_index(i, j):
+    # This map is precomputed right after the definition of this function
+    return seg_index_map[(i, j)]
+seg_index_map = {}
+seg_index_to_time = {}
+counter = 0
+for i in range(nb_pts):
+    for j in range(i + 1, nb_pts):
+        seg_index_map[(i, j)] = counter
+        seg_index_to_time[counter] = seg_time(i, j)
+
 
 ###
 ## The main algorithm that compute our matrices
@@ -110,23 +110,23 @@ print(d1)
 print("Compute the transposed matrix From C_2 to C_1:")
 
 d2 = []
-# for i in range(nb_pts):
-#     for j in range(i + 1, nb_pts):
-#         for k in range(j + 1, nb_pts):
-#             col = SortedDict()
-#             # the two point should be close to each other: rips filtration
-#             x = max(distance(i, j),
-#                     distance(i, k),
-#                     distance(j, k))
-#             # the two points should be in the set
-#             y = max(densities[i], densities[j], densities[k])
-#             #Remember seg_index(x, y) require x < y!
-#             (sx, sy) = seg_time(i, j)
-#             col[seg_index(i, j)] = (x - sx, y - sy)
-#             col[seg_index(j, k)] = (x, y)
-#             col[seg_index(i, k)] = (x, y)
-#             d2 += [col]
-#print(d2)
+for i in range(nb_pts):
+    for j in range(i + 1, nb_pts):
+        for k in range(j + 1, nb_pts):
+            col = SortedDict()
+            # the two point should be close to each other: rips filtration
+            x = max(distance(i, j),
+                    distance(i, k),
+                    distance(j, k))
+            # the two points should be in the set
+            y = max(densities[i], densities[j], densities[k])
+            #Remember seg_index(x, y) require x < y!
+            (sx, sy) = seg_time(i, j)
+            col[seg_index(i, j)] = (x - sx, y - sy)
+            col[seg_index(j, k)] = (x, y)
+            col[seg_index(i, k)] = (x, y)
+            d2 += [col]
+print(d2)
 
 ########### Butcher implementation
 ###
@@ -225,10 +225,19 @@ def DIVIDES(vec, f):
 #Compute the S polynomial vectors f and g
 #Warning:We suppose f and g homogeneous.
 #The result is homogeneous of degree l where x^l = LCM(LM(f), LM(g))
-def S(f, g):
-    #todo
+# The simplex type is the type of simplex considered in the computation.
+# The simplex_type variable contain the dimension of simplices aligned
+# with lines.
+def S(f, g, simplex_type=0):
+    def get_uei(i):
+        if simplex_type == 0:
+            return (0, densities[i])
+        elif simplex_type == 1:
+            return seg_index_to_time[i]
+        else:
+            raise ValueError("Unhandled simplex type for S polynomials computation!")
     j, lcm = LCM(f, g)
-    uej = (0, densities[j])
+    uej = get_uei(j)
     l = tuple_plus(lcm, uej)
     s = SortedDict()
     #On Z2, cf and cg (the leading coefficients) are equal to = 1
@@ -238,36 +247,36 @@ def S(f, g):
     # So we need tto keep x^l / x^uei on each cell that is only
     # non zero in f or g
     for i in f:
-        #print("f[", i, "]:", f[i])
+        print("f[", i, "]:", f[i])
         #todo: uei is different for edges and point.
         # here we only do it or point. we need to ask the hash table
         # for the edges!
-        uei = (0, densities[i])
+        uei = get_uei(i)
         if i in s:
-            #print("del i:", i, " value:", tuple_minus(l, uei))
+            print("del i:", i, " value:", tuple_minus(l, uei))
             assert(s[i] == tuple_minus(l, uei))
             del s[i]
         else:
-            #print("add i:", i, " value:", tuple_minus(l, uei))
+            print("add i:", i, " value:", tuple_minus(l, uei))
             s[i] = tuple_minus(l, uei)
     for i in g:
         #todo: uei is different for edges and point.
         # here we only do it or point. we need to ask the hash table
         # for the edges!
-        uei = (0, densities[i])
-        #print("g[", i, "]:", g[i])
+        uei = get_uei(i)
+        print("g[", i, "]:", g[i])
         if i in s:
-            #print("del i:", i, " value:", tuple_minus(l, uei))
+            print("del i:", i, " value:", tuple_minus(l, uei))
             assert(s[i] == tuple_minus(l, uei))
             del s[i]
         else:
-            #print("add i:", i, " value:", tuple_minus(l, uei))
+            print("add i:", i, " value:", tuple_minus(l, uei))
             s[i] = tuple_minus(l, uei)
     return s
     
 print(d1[0], d1[1])
 print("LCM:", LCM(d1[0], d1[1]))
-print(S(d1[0], d1[1]))
+print(S(d2[0], d2[1], 1))
 exit(42)
 #Tests:
 res = DIVIDES(d1[0], d1[1:])
