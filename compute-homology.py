@@ -248,9 +248,6 @@ def S(f, g, simplex_type=0):
     # non zero in f or g
     for i in f:
         print("f[", i, "]:", f[i])
-        #todo: uei is different for edges and point.
-        # here we only do it or point. we need to ask the hash table
-        # for the edges!
         uei = get_uei(i)
         if i in s:
             print("del i:", i, " value:", tuple_minus(l, uei))
@@ -260,9 +257,6 @@ def S(f, g, simplex_type=0):
             print("add i:", i, " value:", tuple_minus(l, uei))
             s[i] = tuple_minus(l, uei)
     for i in g:
-        #todo: uei is different for edges and point.
-        # here we only do it or point. we need to ask the hash table
-        # for the edges!
         uei = get_uei(i)
         print("g[", i, "]:", g[i])
         if i in s:
