@@ -157,10 +157,11 @@ def divides(v, u):
     return v[1] <= u[1]
 
 def LCM_poly(p, q):
-    #print("p: ", p, " q: ", q)
+    print("p: ", p, " q: ", q)
     return (max(p[0], q[0]), max(p[1], q[1]))
 
 # A vector has type SortedDict{line index : (x power, y power)}
+# Return the pair (line index, (x power,y power)) or 0
 def LCM(vec1, vec2):
     l1 = LM(vec1)
     l2 = LM(vec2)
@@ -169,10 +170,10 @@ def LCM(vec1, vec2):
     if l1[0] != l2[0]:
         return 0
     else:
-        return LCM_poly(l1[1], l2[1])
-#Debug: (should return (8, 10)
+        return (l1[0], LCM_poly(l1[1], l2[1]))
+#Debug: should return (8, 10)
 #print(LCM(SortedDict({0:(8, 8), 1:(10, 10), 2:(5, 5)}),
-#          SortedDict({0:(0, 10), 1:(1, 10), 2:(2, 10)})))
+#          SortedDict({0:(0, 10), 1:(1, 10), 2:(2, 10)}))[1])
 
 # Divides the polynomial vector vec by
 # the list of polynomial vectors veclist.
@@ -221,6 +222,53 @@ def DIVIDES(vec, f):
             del p[lt_p_key]
     return (q, r)
 
+#Compute the S polynomial vectors f and g
+#Warning:We suppose f and g homogeneous.
+#The result is homogeneous of degree l where x^l = LCM(LM(f), LM(g))
+def S(f, g):
+    #todo
+    j, lcm = LCM(f, g)
+    uej = (0, densities[j])
+    l = tuple_plus(lcm, uej)
+    s = SortedDict()
+    #On Z2, cf and cg (the leading coefficients) are equal to = 1
+    #Thus di = ci/cf - c'i/cg = ci - c'i
+    # where S(f, g) = Sum di x^l/x^uei ei
+    # and ci are coefficients of f, c'i coefficients of g.
+    # So we need tto keep x^l / x^uei on each cell that is only
+    # non zero in f or g
+    for i in f:
+        #print("f[", i, "]:", f[i])
+        #todo: uei is different for edges and point.
+        # here we only do it or point. we need to ask the hash table
+        # for the edges!
+        uei = (0, densities[i])
+        if i in s:
+            #print("del i:", i, " value:", tuple_minus(l, uei))
+            assert(s[i] == tuple_minus(l, uei))
+            del s[i]
+        else:
+            #print("add i:", i, " value:", tuple_minus(l, uei))
+            s[i] = tuple_minus(l, uei)
+    for i in g:
+        #todo: uei is different for edges and point.
+        # here we only do it or point. we need to ask the hash table
+        # for the edges!
+        uei = (0, densities[i])
+        #print("g[", i, "]:", g[i])
+        if i in s:
+            #print("del i:", i, " value:", tuple_minus(l, uei))
+            assert(s[i] == tuple_minus(l, uei))
+            del s[i]
+        else:
+            #print("add i:", i, " value:", tuple_minus(l, uei))
+            s[i] = tuple_minus(l, uei)
+    return s
+    
+print(d1[0], d1[1])
+print("LCM:", LCM(d1[0], d1[1]))
+print(S(d1[0], d1[1]))
+exit(42)
 #Tests:
 res = DIVIDES(d1[0], d1[1:])
 #              [
