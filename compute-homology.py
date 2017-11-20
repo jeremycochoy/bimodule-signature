@@ -44,7 +44,7 @@ max_density = max(densities)
 # outliers with low densities and interesting points at high densities.
 for i in range(0, len(densities)):
     densities[i] = max_density - densities[i]
-
+    
 ###
 ## Utilitary function that allow accessing informations
 ## about simplexes (mostly edges)
@@ -110,22 +110,22 @@ print(d1)
 print("Compute the transposed matrix From C_2 to C_1:")
 
 d2 = []
-for i in range(nb_pts):
-    for j in range(i + 1, nb_pts):
-        for k in range(j + 1, nb_pts):
-            col = SortedDict()
-            # the two point should be close to each other: rips filtration
-            x = max(distance(i, j),
-                    distance(i, k),
-                    distance(j, k))
-            # the two points should be in the set
-            y = max(densities[i], densities[j], densities[k])
-            #Remember seg_index(x, y) require x < y!
-            (sx, sy) = seg_time(i, j)
-            col[seg_index(i, j)] = (x - sx, y - sy)
-            col[seg_index(j, k)] = (x, y)
-            col[seg_index(i, k)] = (x, y)
-            d2 += [col]
+# for i in range(nb_pts):
+#     for j in range(i + 1, nb_pts):
+#         for k in range(j + 1, nb_pts):
+#             col = SortedDict()
+#             # the two point should be close to each other: rips filtration
+#             x = max(distance(i, j),
+#                     distance(i, k),
+#                     distance(j, k))
+#             # the two points should be in the set
+#             y = max(densities[i], densities[j], densities[k])
+#             #Remember seg_index(x, y) require x < y!
+#             (sx, sy) = seg_time(i, j)
+#             col[seg_index(i, j)] = (x - sx, y - sy)
+#             col[seg_index(j, k)] = (x, y)
+#             col[seg_index(i, k)] = (x, y)
+#             d2 += [col]
 #print(d2)
 
 ########### Butcher implementation
@@ -134,6 +134,14 @@ for i in range(nb_pts):
 ### division on polynomial vectors instead of just polynoms.
 ###
 
+#add two tuple
+def tuple_plus(a, b):
+    return (a[0] + b[0], a[1] + b[1])
+
+#substract b to a
+def tuple_minus(a, b):
+    return (a[0] - b[0], a[1] - b[1])
+
 # A vector has type SortedDict{line index : (x power, y power)}
 def LM(vec):
     return vec.items()[0]
@@ -141,6 +149,12 @@ def LM(vec):
 # In Z2, LT = ML :)
 def LT(vec):
     return LM(vec)
+
+#Return true if u divides v
+def divides(v, u):
+    if (u[0] != v[0]):
+        return False
+    return v[1] <= u[1]
 
 def LCM_poly(p, q):
     #print("p: ", p, " q: ", q)
@@ -162,24 +176,54 @@ def LCM(vec1, vec2):
 
 # Divides the polynomial vector vec by
 # the list of polynomial vectors veclist.
-def DIVIDES(vec, veclist):
+# Warning: We suppose all vector are homogeneous!!!
+def DIVIDES(vec, f):
     p = vec
     r = SortedDict()
     q = {} #We use a dictionary for easy and fast acess to qi
-    while len(p) != 0: #While p != 0
-        we_did_something = false
-        for i in range(0, len(veclist)):
-            we_did_something = false
-        if we_did_something == false:
-            (lt_p_key, lt_p_value) = LT(p)
-            #Z2 addition, and we use homogeneousness
-            # to know that we won't have two different monomials at same time
-            #--------- assert:
-            printf("r monom:", r.get(lt_p_key, 0), " p lt monom:", lt_p_value)
-            #---------
-            if r.has_key(lt_p_key):
+    #while p != 0
+    while len(p) != 0:
+        we_did_something = False
+        #for each fi
+        for i in range(0, len(f)): 
+            #DEBUG:print("f[", i, "]:", f[i])
+            lt_fi = LT(f[i])
+            lt_p = LT(p)
+            (lt_p_key,  lt_p_value)  = lt_p
+            (lt_fi_key, lt_fi_value) = lt_fi
+            if divides(lt_fi, lt_p):
+                #DEBUG:print("lt_fi", lt_fi, " divides ",lt_p)
+                #ltp_over_ltfi = LT(p)/LT(fi)
+                ltp_ltfi_value = tuple_minus(lt_p_value, lt_fi_value)
+                ltp_ltfi = (lt_p_key, ltp_ltfi_value)
+                #qi = qi + LT(p)/LT(fi)
+                if i in q.keys():
+                    q[i] += [ltp_ltfi]
+                else:
+                    q[i] = [ltp_ltfi]
+                #p = p - (LT(p)/LT(fi))fi
+                for term_idx, term_val in f[i].items():
+                    product = tuple_plus(ltp_ltfi_value, f[i][term_idx])
+                    if term_idx in p.keys():
+                        assert(p[term_idx] == product)
+                        del p[term_idx]
+                    else:
+                        p[term_idx] = product
+                we_did_something = True
+        if we_did_something == False:
+            #r = r + LT(p)
+            if lt_p_key in r.keys():
+                assert(r[lt_p_key] == lt_p_value)
                 del r[lt_p_key]
             else:
                 r[lt_p_key] = lt_p_value
-                del p[lt_p_key]
-        
+            #p = p - LT(p)
+            del p[lt_p_key]
+    return (q, r)
+
+#Tests:
+res = DIVIDES(d1[0], d1[1:])
+#              [
+#                  SortedDict({0:(1, 0), 3:(1, 2)})
+#              ])
+print(res)
