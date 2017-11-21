@@ -319,8 +319,24 @@ def BUTCHBERGER(F, simplex_type=0):
                     we_did_something = True
         print("While Loop!")
     return F
+
+def reduce_basis(F):
+    G = []
+    l = len(F)
+    for i in range(0, l):
+        print("i:", i)
+        H = G + F[i + 1:]
+        (_, r) = DIVIDES(F[i], H)
+        if not (not r):
+            G = [r] + G
+    return G
+
 print("Compute grobner basis...")
-print(BUTCHBERGER(d2, 1))
+grobner_d1 = BUTCHBERGER(d1, 0);
+grobner_d1 = reduce_basis(grobner_d1)
+print(grobner_d1)
+print(len(grobner_d1))
+
 exit(42)
 
 #Tests:
