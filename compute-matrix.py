@@ -113,6 +113,8 @@ for i in range(nb_pts):
             #Remember seg_index(x, y) require x < y!
             (sx, sy) = seg_time(i, j)
             col[seg_index(i, j)] = "x^%f y^%f" % (x - sx, y - sy)
-            col[seg_index(j, k)] = "x^%f y^%f" % (x, y)
-            col[seg_index(i, k)] = "-x^%f y^%f" % (x, y)
+            (sx, sy) = seg_time(j, k)
+            col[seg_index(j, k)] = "x^%f y^%f" % (x - sx, y - sy)
+            (sx, sy) = seg_time(i, k)
+            col[seg_index(i, k)] = "-x^%f y^%f" % (x - sx, y - sy)
             print(" ".join(col.tolist()))
