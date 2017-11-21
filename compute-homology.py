@@ -34,25 +34,37 @@ for line in file:
     points += [coordinates]
     densities += [density]
 
-points = np.array(points)
-densities = np.array(densities)
-nb_pts = len(points)
-max_density = max(densities)
+#DEBUG: It's too slow so let's just keep the first 20 points for the begining :v
+points = points[:20]
+
+    
+#NB: we cannot use float variables for computing persistence.
+#    The reason is that additions add errors in the coefficients
+#    because of the precision of float representation.
+#    TODO: maybe we could actually still use float by being carefull
+#          and relying on homogeneity.
+FACTOR = 10000000
 
 #Reverse densities. This code is not needeed, we use it so that we can take
 # the sup-levelsets for density, because our imput file have
 # outliers with low densities and interesting points at high densities.
+# Then, convert to integer.
+max_density = max(densities)
 for i in range(0, len(densities)):
-    densities[i] = max_density - densities[i]
+    densities[i] = int(FACTOR*(max_density - densities[i]))
+    
+points = np.array(points)
+densities = np.array(densities)
+nb_pts = len(points)
     
 ###
 ## Utilitary function that allow accessing informations
 ## about simplexes (mostly edges)
 ###
 
-#Fast distance computation (euclidean)
+#Fast distance computation (euclidean) in integer
 def distance(i, j):
-    return np.linalg.norm(points[i] - points[j])
+    return int(FACTOR * np.linalg.norm(points[i] - points[j]))
 
 #Return the pair of time where the segment appear in the filtration.
 def seg_time(i, j):
@@ -75,7 +87,7 @@ for i in range(nb_pts):
     for j in range(i + 1, nb_pts):
         seg_index_map[(i, j)] = counter
         seg_index_to_time[counter] = seg_time(i, j)
-
+        counter += 1
 
 ###
 ## The main algorithm that compute our matrices
@@ -104,7 +116,7 @@ for i in range(nb_pts):
         col[j] = (x, y - densities[j])
         d1 += [col]
 
-print(d1)
+#print(d1)
 
 #Then the bondary matrix \delta_2
 print("Compute the transposed matrix From C_2 to C_1:")
@@ -123,12 +135,14 @@ for i in range(nb_pts):
             #Remember seg_index(x, y) require x < y!
             (sx, sy) = seg_time(i, j)
             col[seg_index(i, j)] = (x - sx, y - sy)
-            col[seg_index(j, k)] = (x, y)
-            col[seg_index(i, k)] = (x, y)
+            (sx, sy) = seg_time(j, k)
+            col[seg_index(j, k)] = (x - sx, y - sy)
+            (sx, sy) = seg_time(i, k)
+            col[seg_index(i, k)] = (x - sx, y - sy)
             d2 += [col]
-print(d2)
+#print(d2)
 
-########### Butcher implementation
+########### Butchberger implementation
 ###
 ### We use a slightly modified version of butcher to compute
 ### division on polynomial vectors instead of just polynoms.
@@ -157,18 +171,18 @@ def divides(v, u):
     return v[1] <= u[1]
 
 def LCM_poly(p, q):
-    print("p: ", p, " q: ", q)
+    #print("LCM_poly p: ", p, " q: ", q)
     return (max(p[0], q[0]), max(p[1], q[1]))
 
 # A vector has type SortedDict{line index : (x power, y power)}
-# Return the pair (line index, (x power,y power)) or 0
+# Return the pair (line index, (x power,y power)) or (0, 0)
 def LCM(vec1, vec2):
     l1 = LM(vec1)
     l2 = LM(vec2)
     #print("LM Vec1:",l1)
     #print("LM Vec2:",l2)
     if l1[0] != l2[0]:
-        return 0
+        return (0, 0)
     else:
         return (l1[0], LCM_poly(l1[1], l2[1]))
 #Debug: should return (8, 10)
@@ -181,6 +195,7 @@ def LCM(vec1, vec2):
 def DIVIDES(vec, f):
     p = vec
     r = SortedDict()
+    #print("DIVIDES p:", p)
     q = {} #We use a dictionary for easy and fast acess to qi
     #while p != 0
     while len(p) != 0:
@@ -206,11 +221,16 @@ def DIVIDES(vec, f):
                 for term_idx, term_val in f[i].items():
                     product = tuple_plus(ltp_ltfi_value, f[i][term_idx])
                     if term_idx in p.keys():
+                        #print("del",p[term_idx], "==", product, "key:", term_idx)
                         assert(p[term_idx] == product)
                         del p[term_idx]
                     else:
+                        #print("write", product, "key:", term_idx)
                         p[term_idx] = product
                 we_did_something = True
+                #If p get set to 0
+                if not p:
+                    break
         if we_did_something == False:
             #r = r + LT(p)
             if lt_p_key in r.keys():
@@ -236,10 +256,13 @@ def S(f, g, simplex_type=0):
             return seg_index_to_time[i]
         else:
             raise ValueError("Unhandled simplex type for S polynomials computation!")
+    s = SortedDict()
     j, lcm = LCM(f, g)
+    #Case LCM = 0
+    if lcm == 0:
+        return s
     uej = get_uei(j)
     l = tuple_plus(lcm, uej)
-    s = SortedDict()
     #On Z2, cf and cg (the leading coefficients) are equal to = 1
     #Thus di = ci/cf - c'i/cg = ci - c'i
     # where S(f, g) = Sum di x^l/x^uei ei
@@ -247,31 +270,59 @@ def S(f, g, simplex_type=0):
     # So we need tto keep x^l / x^uei on each cell that is only
     # non zero in f or g
     for i in f:
-        print("f[", i, "]:", f[i])
+        #print("f[", i, "]:", f[i])
         uei = get_uei(i)
         if i in s:
-            print("del i:", i, " value:", tuple_minus(l, uei))
+            #print("del i:", i, " value:", tuple_minus(l, uei))
             assert(s[i] == tuple_minus(l, uei))
             del s[i]
         else:
-            print("add i:", i, " value:", tuple_minus(l, uei))
+            #print("add i:", i, " value:", tuple_minus(l, uei))
             s[i] = tuple_minus(l, uei)
     for i in g:
         uei = get_uei(i)
-        print("g[", i, "]:", g[i])
+        #print("g[", i, "]:", g[i])
         if i in s:
-            print("del i:", i, " value:", tuple_minus(l, uei))
+            #print("del i:", i, " value:", tuple_minus(l, uei))
             assert(s[i] == tuple_minus(l, uei))
             del s[i]
         else:
-            print("add i:", i, " value:", tuple_minus(l, uei))
+            #print("add i:", i, " value:", tuple_minus(l, uei))
             s[i] = tuple_minus(l, uei)
     return s
-    
-print(d1[0], d1[1])
-print("LCM:", LCM(d1[0], d1[1]))
-print(S(d2[0], d2[1], 1))
+
+def BUTCHBERGER(F, simplex_type=0):
+    #Make sure we work with set!
+    #todo F = set(F)
+    we_did_something = True
+    while we_did_something:
+        we_did_something = False
+        size_f = len(F)
+        #foreach pair f != g \in F
+        for i in range(0, size_f):
+            for j in range(i + 1, size_f):
+                f=F[i]
+                g=F[j]
+                if (not f) or (not g):
+                    print("Null vector found in BUTCHERGER set!!!")
+                    assert(False)
+                s = S(f, g, simplex_type)                
+                #print("S(f,g):", S(f, g), f, g)
+                if not s:
+                    #print("S(f,g) == 0")
+                    continue
+                #print("LT(s):", LT(s))
+                (_, r) = DIVIDES(s, F)
+                if not(not r):
+                    print("Grobner basis (new vector added):", r)
+                    F = [r] + F
+                    we_did_something = True
+        print("While Loop!")
+    return F
+print("Compute grobner basis...")
+print(BUTCHBERGER(d2, 1))
 exit(42)
+
 #Tests:
 res = DIVIDES(d1[0], d1[1:])
 #              [
