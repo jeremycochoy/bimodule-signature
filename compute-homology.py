@@ -341,4 +341,18 @@ for vec in grobner_d1:
         print(key, ":", val, end=' ')
     print('}')
 
-print(len(grobner_d1))
+print("Length:", len(grobner_d1))
+
+print("GAP: HomalgMatrix(\n\"[")
+for vec in grobner_d1:
+    virg = False;
+    for i in range(0, len(points)):
+        if (virg):
+            print(', ', end='')
+        if i in vec.keys():
+            print('x^%d * y^%d' % val, end='')
+        else:
+            print("0", end='')
+        virg = True
+print("]\",", len(grobner_d1), ",", len(points), ")")
+
