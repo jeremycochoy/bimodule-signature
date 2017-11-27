@@ -35,15 +35,14 @@ for line in file:
     densities += [density]
 
 #DEBUG: It's too slow so let's just keep the first 20 points for the begining :v
-points = points[:20]
+points = points[:100]
 
-    
 #NB: we cannot use float variables for computing persistence.
 #    The reason is that additions add errors in the coefficients
 #    because of the precision of float representation.
 #    TODO: maybe we could actually still use float by being carefull
 #          and relying on homogeneity.
-FACTOR = 10000000
+FACTOR = 100000000
 
 #Reverse densities. This code is not needeed, we use it so that we can take
 # the sup-levelsets for density, because our imput file have
@@ -164,11 +163,11 @@ def LM(vec):
 def LT(vec):
     return LM(vec)
 
-#Return true if u divides v
+#Return true if u divides v (partial order on N^2)
 def divides(v, u):
     if (u[0] != v[0]):
         return False
-    return v[1] <= u[1]
+    return v[1][0] <= u[1][0] and v[1][1] <= u[1][1]
 
 def LCM_poly(p, q):
     #print("LCM_poly p: ", p, " q: ", q)
@@ -192,10 +191,10 @@ def LCM(vec1, vec2):
 # Divides the polynomial vector vec by
 # the list of polynomial vectors veclist.
 # Warning: We suppose all vector are homogeneous!!!
-def DIVIDES(vec, f):
+def DIVIDE(vec, f):
     p = vec
     r = SortedDict()
-    #print("DIVIDES p:", p)
+    #print("DIVIDE p:", p)
     q = {} #We use a dictionary for easy and fast acess to qi
     #while p != 0
     while len(p) != 0:
@@ -312,7 +311,7 @@ def BUTCHBERGER(F, simplex_type=0):
                     #print("S(f,g) == 0")
                     continue
                 #print("LT(s):", LT(s))
-                (_, r) = DIVIDES(s, F)
+                (_, r) = DIVIDE(s, F)
                 if not(not r):
                     print("Grobner basis (new vector added):", r)
                     F = [r] + F
@@ -324,24 +323,22 @@ def reduce_basis(F):
     G = []
     l = len(F)
     for i in range(0, l):
-        print("i:", i)
         H = G + F[i + 1:]
-        (_, r) = DIVIDES(F[i], H)
+        (_, r) = DIVIDE(F[i], H)
         if not (not r):
             G = [r] + G
     return G
 
 print("Compute grobner basis...")
 grobner_d1 = BUTCHBERGER(d1, 0);
+print("Reduce grobner basis...")
 grobner_d1 = reduce_basis(grobner_d1)
-print(grobner_d1)
+
+print("Reduced grobner basis for Im d_1:")
+for vec in grobner_d1:
+    print('{', end='')
+    for key, val in vec.items():
+        print(key, ":", val, end=' ')
+    print('}')
+
 print(len(grobner_d1))
-
-exit(42)
-
-#Tests:
-res = DIVIDES(d1[0], d1[1:])
-#              [
-#                  SortedDict({0:(1, 0), 3:(1, 2)})
-#              ])
-print(res)
